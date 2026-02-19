@@ -78,7 +78,7 @@ userSchema.methods.toPublic = function () {
 };
 
 // ── Index ─────────────────────────────────────────────
-userSchema.index({ email: 1 });
+
 
 module.exports = mongoose.model('User', userSchema);
 
