@@ -78,20 +78,3 @@ module.exports = { sendWelcomeEmail, sendEnrollmentEmail };
 
 ---
 
-After this, also check your `files/` folder in GitHub has **all these files** — any missing one will cause the same error:
-```
-files/
-├── server.js          ✅
-├── package.json       ✅
-├── config/
-│   └── email.js       ← just created this
-├── middleware/
-│   └── auth.js
-├── models/
-│   ├── User.js
-│   ├── Payment.js
-│   └── Course.js
-└── routes/
-    ├── auth.js
-    ├── courses.js
-    └── payments.js
