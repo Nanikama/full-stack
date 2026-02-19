@@ -1,11 +1,12 @@
+// routes/courses.js
 const express = require('express');
 const Course  = require('../models/Course');
-const { protect, restrictToAdmin } = require('../middleware/auth');
+const { protect, adminOnly } = require('../middleware/auth');
 
 const router = express.Router();
 
-// Fallback courses if DB is empty — matches frontend COURSES array
-const DEFAULT_COURSES = [
+// ── Fallback courses (shown if DB is empty) ───────────
+const FALLBACK_COURSES = [
   { name: 'AFFILIATE MARKETING',     tag: 'Marketing',    thumbnail: { url: 'https://images.unsplash.com/photo-1563986768609-322da13575f3?w=400&auto=format&fit=crop&q=80' } },
   { name: 'INSTAGRAM MARKETING',     tag: 'Social Media', thumbnail: { url: 'https://images.unsplash.com/photo-1611162617474-5b21e879e113?w=400&auto=format&fit=crop&q=80' } },
   { name: 'GRAPHIC DESIGNING',       tag: 'Design',       thumbnail: { url: 'https://images.unsplash.com/photo-1561070791-2526d30994b5?w=400&auto=format&fit=crop&q=80' } },
@@ -20,59 +21,42 @@ const DEFAULT_COURSES = [
   { name: 'WHATSAPP MARKETING',      tag: 'Marketing',    thumbnail: { url: 'https://images.unsplash.com/photo-1611944212129-29977ae1398c?w=400&auto=format&fit=crop&q=80' } },
 ];
 
-// ══ GET /api/courses ══════════════════════════════════════════════
-// Public — returns all active courses (seeded defaults if DB empty)
-router.get('/', async (_req, res) => {
+// ── GET /api/courses ─────────────────────────────────
+router.get('/', async (req, res, next) => {
   try {
-    let courses = await Course.find({ isActive: true }).sort({ order: 1, createdAt: 1 });
-
-    // Seed defaults on first run
+    const courses = await Course.find({ isActive: true }).sort({ createdAt: -1 });
     if (courses.length === 0) {
-      courses = await Course.insertMany(DEFAULT_COURSES.map((c, i) => ({ ...c, order: i })));
+      return res.json({ courses: FALLBACK_COURSES, source: 'fallback' });
     }
-
-    res.json({ courses });
+    return res.json({ courses, source: 'db' });
   } catch (err) {
-    console.error('[courses GET]', err.message);
-    // Graceful fallback — frontend also has local array
-    res.status(500).json({ courses: DEFAULT_COURSES, error: 'DB unavailable, using defaults.' });
+    // On DB error, return fallback so frontend never breaks
+    console.error('[Courses] DB error, serving fallback:', err.message);
+    return res.json({ courses: FALLBACK_COURSES, source: 'fallback' });
   }
 });
 
-// ══ POST /api/courses ══════════════════════════════════════════════
-// Admin only — add a course
-router.post('/', protect, restrictToAdmin, async (req, res) => {
+// ── POST /api/courses  (admin: add a course) ──────────
+router.post('/', protect, adminOnly, async (req, res, next) => {
   try {
-    const { name, tag, description, level, thumbnail } = req.body;
-    if (!name || !tag) return res.status(400).json({ error: 'Name and tag are required.' });
+    const { name, tag, thumbnail, description } = req.body;
+    if (!name) return res.status(400).json({ error: 'Course name is required.' });
 
-    const course = await Course.create({ name, tag, description, level, thumbnail });
-    res.status(201).json({ course });
+    const course = await Course.create({ name, tag, thumbnail, description });
+    return res.status(201).json({ message: 'Course created.', course });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    next(err);
   }
 });
 
-// ══ PUT /api/courses/:id ══════════════════════════════════════════
-router.put('/:id', protect, restrictToAdmin, async (req, res) => {
+// ── DELETE /api/courses/:id  (admin) ─────────────────
+router.delete('/:id', protect, adminOnly, async (req, res, next) => {
   try {
-    const course = await Course.findByIdAndUpdate(req.params.id, req.body, { new: true, runValidators: true });
-    if (!course) return res.status(404).json({ error: 'Course not found.' });
-    res.json({ course });
+    await Course.findByIdAndDelete(req.params.id);
+    return res.json({ message: 'Course deleted.' });
   } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// ══ DELETE /api/courses/:id ═══════════════════════════════════════
-router.delete('/:id', protect, restrictToAdmin, async (req, res) => {
-  try {
-    await Course.findByIdAndUpdate(req.params.id, { isActive: false });
-    res.json({ message: 'Course deactivated.' });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
+    next(err);
   }
 });
 
 module.exports = router;
-
