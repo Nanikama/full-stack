@@ -360,8 +360,7 @@
   const API_BASE = (() => {
     const forced = localStorage.getItem('sb_api_base');
     if (forced) return forced.replace(/\/$/, '');
-    if (location?.port === '5000') return `${location.origin}/api`;
-    return 'http://localhost:5000/api';
+    return 'https://full-stack-xlm6.onrender.com/api';
   })();
 
   let authToken   = localStorage.getItem('sb_token') || null;
@@ -708,7 +707,6 @@
     <svg viewBox="0 0 24 24"><polyline points="18 15 12 9 6 15"/></svg>
   </button>
 
-  <!-- ══ ENROLL MODAL — PASSWORD FIELD ADDED ══ -->
   <div class="modal-overlay" id="enrollModal">
     <div class="modal">
       <button class="modal-close" id="modalClose" aria-label="Close">
@@ -722,7 +720,6 @@
         <input type="text"     id="modalName"     placeholder="Your Full Name"                    autocomplete="name"/>
         <input type="email"    id="modalEmail"    placeholder="Email Address"                     autocomplete="email"/>
         <input type="tel"      id="modalPhone"    placeholder="Phone Number"                      autocomplete="tel"/>
-        <!-- ✅ PASSWORD FIELD ADDED HERE -->
         <input type="password" id="modalPassword" placeholder="Create a Password (min 6 chars)"   autocomplete="new-password"/>
         <button class="btn btn-primary" style="width:100%;justify-content:center;" id="enrollBtn" onclick="submitEnroll()">
           Proceed to Payment
@@ -732,7 +729,6 @@
     </div>
   </div>
 
-  <!-- ══ LOGIN MODAL ══ -->
   <div class="modal-overlay" id="loginModal">
     <div class="modal">
       <button class="modal-close" onclick="closeModal('loginModal')" aria-label="Close">
@@ -755,7 +751,6 @@
     </div>
   </div>
 
-  <!-- ══ DASHBOARD MODAL ══ -->
   <div class="modal-overlay" id="dashboardModal">
     <div class="modal" style="max-width:520px;">
       <button class="modal-close" onclick="closeModal('dashboardModal')" aria-label="Close">
@@ -821,43 +816,25 @@ const TESTIMONIALS = [
   { name:'Arjun Das',      loc:'Kolkata, West Bengal', rating:5, text:'"The Facebook Ads course alone was worth the entire Premium Package price. The ROI knowledge I gained is incredible. Skillbrzee genuinely cares about results."' },
 ];
 
-/* UTILITY */
-function setLoading(btnId, loading, label = 'Loading…') {
+function setLoading(btnId, loading, label) {
   const btn = document.getElementById(btnId);
   if (!btn) return;
   btn.disabled = loading;
-  if (loading) { btn._original = btn.innerHTML; btn.innerHTML = `<span class="spinner"></span> ${label}`; }
+  if (loading) { btn._original = btn.innerHTML; btn.innerHTML = '<span class="spinner"></span> ' + (label || 'Loading...'); }
   else { btn.innerHTML = btn._original || label; }
 }
 function closeModal(id) { document.getElementById(id)?.classList.remove('open'); document.body.style.overflow = ''; }
 function openModal(id)  { document.getElementById(id)?.classList.add('open');    document.body.style.overflow = 'hidden'; }
 
-/* NAV AUTH */
 function updateNavAuth() {
   const slot   = document.getElementById('navAuthSlot');
   const mobBtn = document.getElementById('mobAuthBtn');
   if (isLoggedIn()) {
-    const initials = currentUser.name.trim().split(' ').map(w => w[0]).join('').slice(0,2).toUpperCase();
-    slot.innerHTML = `
-      <div class="nav-user-wrap" id="navUserWrap">
-        <button class="nav-user-btn" onclick="toggleUserDropdown()">
-          <div class="nav-user-avatar">${initials}</div>
-          <span>${currentUser.name.split(' ')[0]}</span>
-          <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
-        </button>
-        <div class="user-dropdown">
-          <div class="user-dropdown-header">
-            <div class="user-dropdown-name">${currentUser.name}</div>
-            <div class="user-dropdown-email">${currentUser.email}</div>
-          </div>
-          <a onclick="openDashboard()">📊 My Dashboard</a>
-          <a onclick="openDashboard()">🎓 My Courses</a>
-          <a class="logout-btn" onclick="handleLogout()">↩ Logout</a>
-        </div>
-      </div>`;
+    const initials = currentUser.name.trim().split(' ').map(function(w){return w[0];}).join('').slice(0,2).toUpperCase();
+    slot.innerHTML = '<div class="nav-user-wrap" id="navUserWrap"><button class="nav-user-btn" onclick="toggleUserDropdown()"><div class="nav-user-avatar">' + initials + '</div><span>' + currentUser.name.split(' ')[0] + '</span><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg></button><div class="user-dropdown"><div class="user-dropdown-header"><div class="user-dropdown-name">' + currentUser.name + '</div><div class="user-dropdown-email">' + currentUser.email + '</div></div><a onclick="openDashboard()">📊 My Dashboard</a><a onclick="openDashboard()">🎓 My Courses</a><a class="logout-btn" onclick="handleLogout()">↩ Logout</a></div></div>';
     if (mobBtn) mobBtn.textContent = 'My Dashboard';
   } else {
-    slot.innerHTML = `<a href="#" class="btn-nav-login" onclick="openLoginModal(event)">Login</a>`;
+    slot.innerHTML = '<a href="#" class="btn-nav-login" onclick="openLoginModal(event)">Login</a>';
     if (mobBtn) mobBtn.textContent = 'Login';
   }
   initCursorTargets();
@@ -865,86 +842,53 @@ function updateNavAuth() {
 }
 
 function toggleUserDropdown() { document.getElementById('navUserWrap')?.classList.toggle('open'); }
-document.addEventListener('click', (e) => {
+document.addEventListener('click', function(e) {
   const wrap = document.getElementById('navUserWrap');
   if (wrap && !wrap.contains(e.target)) wrap.classList.remove('open');
 });
 function handleMobAuth(e) { e.preventDefault(); closeDrawer(); if (isLoggedIn()) openDashboard(); else openLoginModal(e); }
 
-/* COURSES */
 async function renderCourses() {
   let courses = COURSES_FALLBACK;
   try {
-    const res = await fetch(`${API_BASE}/courses`);
+    const res = await fetch(API_BASE + '/courses');
     if (res.ok) { const data = await res.json(); if (Array.isArray(data.courses) && data.courses.length > 0) courses = data.courses; }
   } catch {}
   const grid = document.getElementById('coursesGrid');
-  grid.innerHTML = courses.map(c => `
-    <div class="course-card" tabindex="0" onclick="scrollToSection('packages')">
-      <div class="course-badge-overlay">${c.tag}</div>
-      <img class="course-img" src="${c.thumbnail?.url || c.img || ''}" alt="${c.name}" loading="lazy"/>
-      <div class="course-body">
-        <div class="course-name">${c.name}</div>
-        <div class="course-tag">Beginner → Advanced</div>
-      </div>
-    </div>`).join('');
+  grid.innerHTML = courses.map(function(c) { return '<div class="course-card" tabindex="0" onclick="scrollToSection(\'packages\')"><div class="course-badge-overlay">' + c.tag + '</div><img class="course-img" src="' + (c.thumbnail&&c.thumbnail.url||c.img||'') + '" alt="' + c.name + '" loading="lazy"/><div class="course-body"><div class="course-name">' + c.name + '</div><div class="course-tag">Beginner → Advanced</div></div></div>'; }).join('');
   observeReveal();
 }
 
-/* PACKAGES */
 function isEnrolledIn(pkgId) {
-  if (!currentUser?.enrolledPackages) return false;
-  return currentUser.enrolledPackages.some(ep => Number(ep.packageId) === Number(pkgId));
+  if (!currentUser || !currentUser.enrolledPackages) return false;
+  return currentUser.enrolledPackages.some(function(ep){ return Number(ep.packageId) === Number(pkgId); });
 }
 function renderPackages() {
   const grid = document.getElementById('packagesGrid');
   if (!grid) return;
-  grid.innerHTML = PACKAGES.map(p => {
+  grid.innerHTML = PACKAGES.map(function(p) {
     const enrolled = isEnrolledIn(p.id);
-    return `
-      <div class="pkg-card ${p.featured ? 'featured' : ''}" id="pkg-${p.id}">
-        ${p.featured ? '<div class="pkg-badge">⭐ Most Popular</div>' : ''}
-        <div class="pkg-img-wrap"><img src="${p.img}" alt="${p.name}" loading="lazy"/></div>
-        <div class="pkg-body">
-          <div class="pkg-name">${p.name}</div>
-          <div class="pkg-desc">${p.desc}</div>
-          <hr class="pkg-divider"/>
-          <div class="pkg-price">${p.price} <sub>${p.sub}</sub></div>
-          ${enrolled
-            ? `<div class="enrolled-badge">✅ Already Enrolled</div>`
-            : `<button class="btn-enroll" onclick="openEnrollModal(${p.id})">Enroll Now <svg viewBox="0 0 24 24"><path d="M5 12h14"/><polyline points="12 5 19 12 12 19"/></svg></button>`}
-        </div>
-      </div>`;
+    return '<div class="pkg-card ' + (p.featured?'featured':'') + '" id="pkg-' + p.id + '">' + (p.featured?'<div class="pkg-badge">⭐ Most Popular</div>':'') + '<div class="pkg-img-wrap"><img src="' + p.img + '" alt="' + p.name + '" loading="lazy"/></div><div class="pkg-body"><div class="pkg-name">' + p.name + '</div><div class="pkg-desc">' + p.desc + '</div><hr class="pkg-divider"/><div class="pkg-price">' + p.price + ' <sub>' + p.sub + '</sub></div>' + (enrolled ? '<div class="enrolled-badge">✅ Already Enrolled</div>' : '<button class="btn-enroll" onclick="openEnrollModal(' + p.id + ')">Enroll Now <svg viewBox="0 0 24 24"><path d="M5 12h14"/><polyline points="12 5 19 12 12 19"/></svg></button>') + '</div></div>';
   }).join('');
 }
 
-/* TESTIMONIALS */
 function renderTestimonials() {
   const track = document.getElementById('testiTrack');
-  const cards = TESTIMONIALS.map(t => `
-    <div class="testi-card">
-      <div class="stars">${'★'.repeat(t.rating)}</div>
-      <div class="testi-text">${t.text}</div>
-      <div class="testi-author">
-        <div class="testi-avatar">${t.name[0]}</div>
-        <div><div class="testi-name">${t.name}</div><div class="testi-loc">📍 ${t.loc}</div></div>
-      </div>
-    </div>`).join('');
+  const cards = TESTIMONIALS.map(function(t) { return '<div class="testi-card"><div class="stars">' + '★'.repeat(t.rating) + '</div><div class="testi-text">' + t.text + '</div><div class="testi-author"><div class="testi-avatar">' + t.name[0] + '</div><div><div class="testi-name">' + t.name + '</div><div class="testi-loc">📍 ' + t.loc + '</div></div></div></div>'; }).join('');
   track.innerHTML = cards + cards;
 }
 
-/* HERO SLIDER */
 let sliderIdx = 0, sliderTimer = null;
 const slides   = document.querySelectorAll('.hero-slide');
 const dotsWrap = document.getElementById('sliderDots');
 
 function buildDots() {
   dotsWrap.innerHTML = '';
-  slides.forEach((_, i) => {
+  slides.forEach(function(_, i) {
     const btn = document.createElement('button');
     btn.className = 'slider-dot' + (i === 0 ? ' active' : '');
-    btn.setAttribute('aria-label', `Slide ${i + 1}`);
-    btn.addEventListener('click', () => goToSlide(i));
+    btn.setAttribute('aria-label', 'Slide ' + (i+1));
+    btn.addEventListener('click', function(){ goToSlide(i); });
     dotsWrap.appendChild(btn);
   });
 }
@@ -955,57 +899,50 @@ function goToSlide(n) {
   slides[sliderIdx].classList.add('active');
   document.querySelectorAll('.slider-dot')[sliderIdx].classList.add('active');
 }
-function startSlider()   { sliderTimer = setInterval(() => goToSlide(sliderIdx + 1), 5500); }
+function startSlider()   { sliderTimer = setInterval(function(){ goToSlide(sliderIdx + 1); }, 5500); }
 function restartSlider() { clearInterval(sliderTimer); startSlider(); }
 
-document.getElementById('prevSlide').addEventListener('click', () => { goToSlide(sliderIdx - 1); restartSlider(); });
-document.getElementById('nextSlide').addEventListener('click', () => { goToSlide(sliderIdx + 1); restartSlider(); });
+document.getElementById('prevSlide').addEventListener('click', function(){ goToSlide(sliderIdx - 1); restartSlider(); });
+document.getElementById('nextSlide').addEventListener('click', function(){ goToSlide(sliderIdx + 1); restartSlider(); });
 
 let touchStartX = 0;
-document.getElementById('hero').addEventListener('touchstart', e => { touchStartX = e.changedTouches[0].clientX; }, { passive:true });
-document.getElementById('hero').addEventListener('touchend',   e => {
+document.getElementById('hero').addEventListener('touchstart', function(e){ touchStartX = e.changedTouches[0].clientX; }, { passive:true });
+document.getElementById('hero').addEventListener('touchend', function(e){
   const dx = e.changedTouches[0].clientX - touchStartX;
   if (Math.abs(dx) > 50) { goToSlide(dx < 0 ? sliderIdx + 1 : sliderIdx - 1); restartSlider(); }
 }, { passive:true });
 
-/* PARTICLES */
 (function initParticles() {
   const canvas = document.getElementById('particles');
   const ctx    = canvas.getContext('2d');
   let W, H, particles;
   function resize() { W = canvas.width = window.innerWidth; H = canvas.height = window.innerHeight; }
   function createParticles() {
-    particles = Array.from({ length:55 }, () => ({
-      x:Math.random()*W, y:Math.random()*H,
-      r:Math.random()*1.8+0.4,
-      dx:(Math.random()-.5)*.45, dy:(Math.random()-.5)*.45,
-      a:Math.random()*.55+.1,
-    }));
+    particles = Array.from({ length:55 }, function(){ return { x:Math.random()*W, y:Math.random()*H, r:Math.random()*1.8+0.4, dx:(Math.random()-.5)*.45, dy:(Math.random()-.5)*.45, a:Math.random()*.55+.1 }; });
   }
   function draw() {
     ctx.clearRect(0,0,W,H);
-    particles.forEach(p => {
+    particles.forEach(function(p) {
       ctx.beginPath(); ctx.arc(p.x,p.y,p.r,0,Math.PI*2);
-      ctx.fillStyle = `rgba(249,115,22,${p.a})`; ctx.fill();
+      ctx.fillStyle = 'rgba(249,115,22,' + p.a + ')'; ctx.fill();
       p.x += p.dx; p.y += p.dy;
       if (p.x<0||p.x>W) p.dx*=-1; if (p.y<0||p.y>H) p.dy*=-1;
     });
     for (let i=0;i<particles.length;i++) for (let j=i+1;j<particles.length;j++) {
       const d = Math.hypot(particles[i].x-particles[j].x, particles[i].y-particles[j].y);
-      if (d<110) { ctx.beginPath(); ctx.strokeStyle=`rgba(249,115,22,${.07*(1-d/110)})`; ctx.lineWidth=.5; ctx.moveTo(particles[i].x,particles[i].y); ctx.lineTo(particles[j].x,particles[j].y); ctx.stroke(); }
+      if (d<110) { ctx.beginPath(); ctx.strokeStyle='rgba(249,115,22,' + (.07*(1-d/110)) + ')'; ctx.lineWidth=.5; ctx.moveTo(particles[i].x,particles[i].y); ctx.lineTo(particles[j].x,particles[j].y); ctx.stroke(); }
     }
     requestAnimationFrame(draw);
   }
   resize(); createParticles(); draw();
-  window.addEventListener('resize', () => { resize(); createParticles(); });
+  window.addEventListener('resize', function(){ resize(); createParticles(); });
 })();
 
-/* CURSOR */
 (function initCursor() {
   const dot  = document.getElementById('cursorDot');
   const ring = document.getElementById('cursorRing');
   let mx=-100,my=-100,rx=-100,ry=-100;
-  document.addEventListener('mousemove', e => { mx=e.clientX; my=e.clientY; });
+  document.addEventListener('mousemove', function(e){ mx=e.clientX; my=e.clientY; });
   (function loop() {
     rx+=(mx-rx)*.14; ry+=(my-ry)*.14;
     dot.style.left=mx+'px';  dot.style.top=my+'px';
@@ -1016,24 +953,23 @@ document.getElementById('hero').addEventListener('touchend',   e => {
 
 function initCursorTargets() {
   const ring = document.getElementById('cursorRing');
-  document.querySelectorAll('a,button,[role="button"]').forEach(el => {
+  document.querySelectorAll('a,button,[role="button"]').forEach(function(el) {
     if (el._cursorBound) return;
     el._cursorBound = true;
-    el.addEventListener('mouseenter', () => { ring.style.width='52px'; ring.style.height='52px'; });
-    el.addEventListener('mouseleave', () => { ring.style.width='36px'; ring.style.height='36px'; });
+    el.addEventListener('mouseenter', function(){ ring.style.width='52px'; ring.style.height='52px'; });
+    el.addEventListener('mouseleave', function(){ ring.style.width='36px'; ring.style.height='36px'; });
   });
 }
 
-/* SCROLL */
 const navbar   = document.getElementById('navbar');
 const sections = document.querySelectorAll('section[id],footer[id]');
-window.addEventListener('scroll', () => {
+window.addEventListener('scroll', function() {
   const y = window.scrollY;
   navbar.classList.toggle('scrolled', y > 60);
   document.getElementById('backToTop').classList.toggle('visible', y > 400);
   let current = '';
-  sections.forEach(s => { if (y + 100 >= s.offsetTop) current = s.id; });
-  document.querySelectorAll('.nav-links > li').forEach(li => {
+  sections.forEach(function(s){ if (y + 100 >= s.offsetTop) current = s.id; });
+  document.querySelectorAll('.nav-links > li').forEach(function(li) {
     const a = li.querySelector(':scope > a');
     if (!a) return;
     li.classList.toggle('active', a.getAttribute('href') === '#' + current);
@@ -1042,8 +978,8 @@ window.addEventListener('scroll', () => {
 
 function scrollToTop() { window.scrollTo({ top:0, behavior:'smooth' }); }
 function scrollToSection(id) { const el = document.getElementById(id); if (el) window.scrollTo({ top: el.offsetTop - 80, behavior:'smooth' }); }
-document.querySelectorAll('a[href^="#"]').forEach(a => {
-  a.addEventListener('click', e => {
+document.querySelectorAll('a[href^="#"]').forEach(function(a) {
+  a.addEventListener('click', function(e) {
     const t = document.querySelector(a.getAttribute('href'));
     if (!t) return;
     e.preventDefault();
@@ -1051,65 +987,56 @@ document.querySelectorAll('a[href^="#"]').forEach(a => {
   });
 });
 
-/* TOP BAR */
-document.getElementById('topbarClose').addEventListener('click', () => {
+document.getElementById('topbarClose').addEventListener('click', function() {
   const bar = document.getElementById('topbar');
   bar.style.transition = 'height .35s,opacity .35s,padding .35s';
   bar.style.height = '0'; bar.style.opacity = '0'; bar.style.padding = '0';
   navbar.classList.remove('topbar-active');
-  setTimeout(() => bar.remove(), 380);
+  setTimeout(function(){ bar.remove(); }, 380);
 });
 
-/* HAMBURGER */
 const hamburger    = document.getElementById('hamburger');
 const mobileDrawer = document.getElementById('mobileDrawer');
-hamburger.addEventListener('click', () => {
+hamburger.addEventListener('click', function() {
   const open = mobileDrawer.classList.toggle('open');
   hamburger.classList.toggle('open', open);
   document.body.style.overflow = open ? 'hidden' : '';
 });
 function closeDrawer() { mobileDrawer.classList.remove('open'); hamburger.classList.remove('open'); document.body.style.overflow = ''; }
-mobileDrawer.addEventListener('click', e => { if (e.target === mobileDrawer) closeDrawer(); });
+mobileDrawer.addEventListener('click', function(e){ if (e.target === mobileDrawer) closeDrawer(); });
 
-/* REVEAL */
-const revealObs = new IntersectionObserver(entries => {
-  entries.forEach(e => { if (e.isIntersecting) { e.target.classList.add('in'); revealObs.unobserve(e.target); } });
+const revealObs = new IntersectionObserver(function(entries) {
+  entries.forEach(function(e){ if (e.isIntersecting) { e.target.classList.add('in'); revealObs.unobserve(e.target); } });
 }, { threshold:0.08, rootMargin:'0px 0px -40px 0px' });
-function observeReveal() { document.querySelectorAll('.reveal,.reveal-left,.reveal-right').forEach(el => revealObs.observe(el)); }
+function observeReveal() { document.querySelectorAll('.reveal,.reveal-left,.reveal-right').forEach(function(el){ revealObs.observe(el); }); }
 
-/* COUNT-UP */
 const NUM_TARGETS = [
   { id:'n1', target:5465, suffix:'+' }, { id:'n2', target:64, suffix:'+' },
   { id:'n3', target:24,   suffix:'+' }, { id:'n4', target:100, suffix:'+' },
 ];
 let counted = false;
-new IntersectionObserver(entries => {
+new IntersectionObserver(function(entries) {
   if (!entries[0].isIntersecting || counted) return;
   counted = true;
-  NUM_TARGETS.forEach(({ id, target, suffix }) => {
-    const el = document.getElementById(id);
+  NUM_TARGETS.forEach(function(item) {
+    const el = document.getElementById(item.id);
     let cur = 0;
-    const step = target / 75;
-    const t = setInterval(() => {
-      cur = Math.min(cur + step, target);
-      el.textContent = Math.floor(cur).toLocaleString('en-IN') + suffix;
-      if (cur >= target) clearInterval(t);
+    const step = item.target / 75;
+    const t = setInterval(function() {
+      cur = Math.min(cur + step, item.target);
+      el.textContent = Math.floor(cur).toLocaleString('en-IN') + item.suffix;
+      if (cur >= item.target) clearInterval(t);
     }, 18);
   });
 }, { threshold:0.3 }).observe(document.getElementById('numbers'));
 
-/* ══════════════════════════════════════════════════════════════════
-   ENROLL MODAL — WITH PASSWORD FIELD
-══════════════════════════════════════════════════════════════════ */
 let currentPkgId = 1;
 
 function openEnrollModal(pkgId) {
-  const pkg = PACKAGES.find(p => p.id === pkgId);
+  const pkg = PACKAGES.find(function(p){ return p.id === pkgId; });
   if (!pkg) return;
   currentPkgId = pkgId;
-
   if (isLoggedIn()) {
-    // User is logged in — pre-fill name/email, disable them, mask password
     document.getElementById('modalName').value        = currentUser.name  || '';
     document.getElementById('modalEmail').value       = currentUser.email || '';
     document.getElementById('modalPhone').value       = currentUser.phone || '';
@@ -1119,7 +1046,6 @@ function openEnrollModal(pkgId) {
     document.getElementById('modalPhone').disabled    = false;
     document.getElementById('modalPassword').disabled = true;
   } else {
-    // New user — clear all fields
     document.getElementById('modalName').value        = '';
     document.getElementById('modalEmail').value       = '';
     document.getElementById('modalPhone').value       = '';
@@ -1129,7 +1055,6 @@ function openEnrollModal(pkgId) {
     document.getElementById('modalPhone').disabled    = false;
     document.getElementById('modalPassword').disabled = false;
   }
-
   document.getElementById('modalTag').textContent   = pkg.name;
   document.getElementById('modalTitle').textContent = 'Enroll in ' + pkg.name.split(' ').slice(0,2).join(' ');
   document.getElementById('modalDesc').textContent  = pkg.desc;
@@ -1139,7 +1064,7 @@ function openEnrollModal(pkgId) {
 
 function closeEnrollModal() { closeModal('enrollModal'); }
 document.getElementById('modalClose').addEventListener('click', closeEnrollModal);
-document.getElementById('enrollModal').addEventListener('click', e => { if (e.target === document.getElementById('enrollModal')) closeEnrollModal(); });
+document.getElementById('enrollModal').addEventListener('click', function(e){ if (e.target === document.getElementById('enrollModal')) closeEnrollModal(); });
 
 async function submitEnroll() {
   const name     = document.getElementById('modalName').value.trim();
@@ -1147,10 +1072,9 @@ async function submitEnroll() {
   const phone    = document.getElementById('modalPhone').value.trim();
   const password = document.getElementById('modalPassword').value.trim();
 
-  if (!name)                                           { showToast('error','Missing Name','Please enter your full name.'); return; }
-  if (!email || !email.includes('@'))                  { showToast('error','Invalid Email','Enter a valid email address.'); return; }
-  if (!phone || phone.replace(/\D/g,'').length < 10)  { showToast('error','Invalid Phone','Enter a valid 10-digit phone number.'); return; }
-  // Only validate password for new (not logged-in) users
+  if (!name)                                          { showToast('error','Missing Name','Please enter your full name.'); return; }
+  if (!email || !email.includes('@'))                 { showToast('error','Invalid Email','Enter a valid email address.'); return; }
+  if (!phone || phone.replace(/\D/g,'').length < 10) { showToast('error','Invalid Phone','Enter a valid 10-digit phone number.'); return; }
   if (!isLoggedIn() && (!password || password.length < 6)) { showToast('error','Weak Password','Password must be at least 6 characters.'); return; }
 
   setLoading('enrollBtn', true, 'Processing…');
@@ -1159,30 +1083,13 @@ async function submitEnroll() {
     let token = authToken;
 
     if (!token) {
-      // Register with the user's chosen password
-      const regRes  = await fetch(`${API_BASE}/auth/register`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, email, phone, password }),
-      });
+      const regRes  = await fetch(API_BASE + '/auth/register', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ name, email, phone, password }) });
       const regData = await regRes.json();
 
-      if (regRes.status === 409 || regData.error?.toLowerCase().includes('already')) {
-        // Account exists → try login with typed password
-        const logRes  = await fetch(`${API_BASE}/auth/login`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email, password }),
-        });
+      if (regRes.status === 409 || (regData.error && regData.error.toLowerCase().includes('already'))) {
+        const logRes  = await fetch(API_BASE + '/auth/login', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ email, password }) });
         const logData = await logRes.json();
-
-        if (!logRes.ok) {
-          setLoading('enrollBtn', false);
-          closeEnrollModal();
-          showToast('info','Account Exists','Please log in to continue enrollment.');
-          openModal('loginModal');
-          return;
-        }
+        if (!logRes.ok) { setLoading('enrollBtn', false); closeEnrollModal(); showToast('info','Account Exists','Please log in to continue enrollment.'); openModal('loginModal'); return; }
         saveAuth(logData.accessToken, logData.user);
         token = logData.accessToken;
       } else if (regRes.ok) {
@@ -1195,76 +1102,49 @@ async function submitEnroll() {
       }
     }
 
-    const orderRes = await fetch(`${API_BASE}/payments/create-order`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-      body: JSON.stringify({ packageId: currentPkgId }),
-    });
+    const orderRes  = await fetch(API_BASE + '/payments/create-order', { method:'POST', headers:{'Content-Type':'application/json','Authorization':'Bearer '+token}, body:JSON.stringify({ packageId: currentPkgId }) });
     const orderData = await orderRes.json();
 
-    if (!orderRes.ok) {
-      showToast('error', 'Order Error', orderData.error || 'Could not create order.');
-      setLoading('enrollBtn', false);
-      return;
-    }
+    if (!orderRes.ok) { showToast('error','Order Error', orderData.error || 'Could not create order.'); setLoading('enrollBtn', false); return; }
 
     setLoading('enrollBtn', false);
     closeEnrollModal();
 
     if (orderData.mock) {
       try {
-        const devRes  = await fetch(`${API_BASE}/payments/dev-confirm`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-          body: JSON.stringify({ paymentId: orderData.paymentId }),
-        });
+        const devRes  = await fetch(API_BASE + '/payments/dev-confirm', { method:'POST', headers:{'Content-Type':'application/json','Authorization':'Bearer '+token}, body:JSON.stringify({ paymentId: orderData.paymentId }) });
         const devData = await devRes.json();
-        if (devRes.ok) { await refreshUser(); updateNavAuth(); showToast('success', '🎓 Enrolled!', `${orderData.packageName} — (dev payment confirmed)`); }
-        else { showToast('error', 'Dev Payment Failed', devData.error || 'Could not confirm payment.'); }
-      } catch { showToast('error', 'Network Error', 'Could not confirm dev payment.'); }
+        if (devRes.ok) { await refreshUser(); updateNavAuth(); showToast('success','🎓 Enrolled!', orderData.packageName + ' — payment confirmed'); }
+        else { showToast('error','Dev Payment Failed', devData.error || 'Could not confirm payment.'); }
+      } catch { showToast('error','Network Error','Could not confirm dev payment.'); }
       return;
     }
 
     const rzp = new Razorpay({
-      key:         orderData.keyId,
-      amount:      orderData.amount,
-      currency:    'INR',
-      name:        'Skillbrzee',
-      description: orderData.packageName,
-      order_id:    orderData.orderId,
-      prefill:     orderData.prefill,
-      theme:       { color: '#f97316' },
-      handler: async (response) => {
+      key: orderData.keyId, amount: orderData.amount, currency:'INR',
+      name:'Skillbrzee', description: orderData.packageName, order_id: orderData.orderId,
+      prefill: orderData.prefill, theme:{ color:'#f97316' },
+      handler: async function(response) {
         try {
-          const verRes = await fetch(`${API_BASE}/payments/verify`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-            body: JSON.stringify({
-              razorpay_order_id:   response.razorpay_order_id,
-              razorpay_payment_id: response.razorpay_payment_id,
-              razorpay_signature:  response.razorpay_signature,
-              paymentId:           orderData.paymentId,
-            }),
-          });
+          const verRes  = await fetch(API_BASE + '/payments/verify', { method:'POST', headers:{'Content-Type':'application/json','Authorization':'Bearer '+token}, body:JSON.stringify({ razorpay_order_id:response.razorpay_order_id, razorpay_payment_id:response.razorpay_payment_id, razorpay_signature:response.razorpay_signature, paymentId:orderData.paymentId }) });
           const verData = await verRes.json();
-          if (verRes.ok) { await refreshUser(); updateNavAuth(); showToast('success', '🎓 Enrolled!', `${orderData.packageName} — Check your email!`); }
-          else { showToast('error', 'Verification Failed', verData.error || 'Contact support.'); }
-        } catch { showToast('error', 'Network Error', 'Could not verify payment. Contact support@skillbrzee.in'); }
+          if (verRes.ok) { await refreshUser(); updateNavAuth(); showToast('success','🎓 Enrolled!', orderData.packageName + ' — Check your email!'); }
+          else { showToast('error','Verification Failed', verData.error || 'Contact support.'); }
+        } catch { showToast('error','Network Error','Could not verify payment.'); }
       },
-      modal: { ondismiss: () => showToast('info', 'Payment Cancelled', 'You can try again anytime.') },
+      modal: { ondismiss: function(){ showToast('info','Payment Cancelled','You can try again anytime.'); } },
     });
     rzp.open();
 
   } catch (err) {
     console.error('[enrollFlow]', err);
-    showToast('error', 'Something went wrong', 'Please check your connection and try again.');
+    showToast('error','Something went wrong','Please check your connection and try again.');
     setLoading('enrollBtn', false);
   }
 }
 
-/* LOGIN */
 function openLoginModal(e) { e && e.preventDefault(); openModal('loginModal'); }
-document.getElementById('loginModal').addEventListener('click', e => { if (e.target === document.getElementById('loginModal')) closeModal('loginModal'); });
+document.getElementById('loginModal').addEventListener('click', function(e){ if (e.target === document.getElementById('loginModal')) closeModal('loginModal'); });
 
 async function handleLogin() {
   const email    = document.getElementById('loginEmail').value.trim();
@@ -1272,23 +1152,21 @@ async function handleLogin() {
   if (!email || !password) { showToast('error','Missing Fields','Enter your email and password.'); return; }
   setLoading('loginBtn', true, 'Logging in…');
   try {
-    const res  = await fetch(`${API_BASE}/auth/login`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ email, password }) });
+    const res  = await fetch(API_BASE + '/auth/login', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ email, password }) });
     const data = await res.json();
-    if (!res.ok) { showToast('error', 'Login Failed', data.error || 'Invalid credentials.'); setLoading('loginBtn', false); return; }
+    if (!res.ok) { showToast('error','Login Failed', data.error || 'Invalid credentials.'); setLoading('loginBtn', false); return; }
     saveAuth(data.accessToken, data.user);
     closeModal('loginModal');
     updateNavAuth();
-    showToast('success', 'Login Successful!', `Welcome back, ${data.user.name} 🎉`);
+    showToast('success','Login Successful!','Welcome back, ' + data.user.name + ' 🎉');
     document.getElementById('loginEmail').value    = '';
     document.getElementById('loginPassword').value = '';
-  } catch { showToast('error', 'Error', 'Could not connect to server.'); }
+  } catch { showToast('error','Error','Could not connect to server.'); }
   finally  { setLoading('loginBtn', false); }
 }
 
-/* LOGOUT */
-function handleLogout() { clearAuth(); closeModal('dashboardModal'); updateNavAuth(); showToast('success', 'Logged Out', 'See you soon! 👋'); }
+function handleLogout() { clearAuth(); closeModal('dashboardModal'); updateNavAuth(); showToast('success','Logged Out','See you soon! 👋'); }
 
-/* DASHBOARD */
 async function openDashboard() {
   if (!isLoggedIn()) { openModal('loginModal'); return; }
   document.getElementById('navUserWrap')?.classList.remove('open');
@@ -1301,87 +1179,58 @@ async function openDashboard() {
 
 function renderDashEnrollments() {
   const el  = document.getElementById('dashEnrollments');
-  const eps = currentUser?.enrolledPackages || [];
-  if (eps.length === 0) {
-    el.innerHTML = `<div class="no-enrollments">No enrollments yet. <a onclick="closeModal('dashboardModal');scrollToSection('packages')">Browse packages →</a></div>`;
-    return;
-  }
-  el.innerHTML = eps.map(ep => `
-    <div class="enrolled-pkg-item">
-      <div>
-        <div class="enrolled-pkg-name">${ep.packageName || 'Package #' + ep.packageId}</div>
-        <div class="enrolled-pkg-date">Enrolled ${new Date(ep.enrolledAt).toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric'})}</div>
-      </div>
-      <span class="enrolled-pkg-badge">✅ Active</span>
-    </div>`).join('');
+  const eps = currentUser && currentUser.enrolledPackages || [];
+  if (eps.length === 0) { el.innerHTML = '<div class="no-enrollments">No enrollments yet. <a onclick="closeModal(\'dashboardModal\');scrollToSection(\'packages\')">Browse packages →</a></div>'; return; }
+  el.innerHTML = eps.map(function(ep){ return '<div class="enrolled-pkg-item"><div><div class="enrolled-pkg-name">' + (ep.packageName||'Package #'+ep.packageId) + '</div><div class="enrolled-pkg-date">Enrolled ' + new Date(ep.enrolledAt).toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric'}) + '</div></div><span class="enrolled-pkg-badge">✅ Active</span></div>'; }).join('');
 }
 
 async function loadPaymentHistory() {
   const el = document.getElementById('dashPayments');
   try {
-    const res  = await fetch(`${API_BASE}/payments/my-payments`, { headers: authHeaders() });
+    const res  = await fetch(API_BASE + '/payments/my-payments', { headers: authHeaders() });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error);
     const payments = data.payments || [];
-    if (payments.length === 0) { el.innerHTML = `<p style="color:var(--text2);font-size:.84rem;text-align:center;padding:16px 0;">No payment records yet.</p>`; return; }
-    el.innerHTML = payments.slice(0,5).map(p => {
+    if (payments.length === 0) { el.innerHTML = '<p style="color:var(--text2);font-size:.84rem;text-align:center;padding:16px 0;">No payment records yet.</p>'; return; }
+    el.innerHTML = payments.slice(0,5).map(function(p){
       const statusColor = p.status==='paid' ? 'var(--green)' : p.status==='failed' ? 'var(--red)' : 'var(--text2)';
-      return `
-        <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 14px;background:var(--bg3);border:1px solid var(--border);border-radius:8px;margin-bottom:6px;font-size:.82rem;">
-          <div>
-            <div style="font-weight:600;">${p.packageName}</div>
-            <div style="color:var(--text2);font-size:.74rem;">${new Date(p.createdAt).toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric'})}</div>
-          </div>
-          <div style="text-align:right;">
-            <div style="font-weight:700;color:var(--orange);">₹${(p.amount/100).toLocaleString('en-IN')}</div>
-            <div style="font-size:.72rem;color:${statusColor};text-transform:uppercase;font-weight:700;">${p.status}</div>
-          </div>
-        </div>`;
+      return '<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 14px;background:var(--bg3);border:1px solid var(--border);border-radius:8px;margin-bottom:6px;font-size:.82rem;"><div><div style="font-weight:600;">' + p.packageName + '</div><div style="color:var(--text2);font-size:.74rem;">' + new Date(p.createdAt).toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric'}) + '</div></div><div style="text-align:right;"><div style="font-weight:700;color:var(--orange);">₹' + (p.amount/100).toLocaleString('en-IN') + '</div><div style="font-size:.72rem;color:' + statusColor + ';text-transform:uppercase;font-weight:700;">' + p.status + '</div></div></div>';
     }).join('');
-  } catch { el.innerHTML = `<p style="color:var(--text2);font-size:.84rem;text-align:center;padding:16px 0;">Could not load payment history.</p>`; }
+  } catch { el.innerHTML = '<p style="color:var(--text2);font-size:.84rem;text-align:center;padding:16px 0;">Could not load payment history.</p>'; }
 }
 
-/* TOAST */
 const TOAST_ICONS = {
   success: '<svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>',
   error:   '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>',
   info:    '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>',
 };
-function showToast(type, title, message, duration = 4500) {
+function showToast(type, title, message, duration) {
+  duration = duration || 4500;
   const container = document.getElementById('toastContainer');
   const toast = document.createElement('div');
   toast.className = 'toast';
-  toast.innerHTML = `
-    <div class="toast-icon ${type}">${TOAST_ICONS[type] || TOAST_ICONS.info}</div>
-    <div class="toast-text"><div class="toast-title">${title}</div><div class="toast-sub">${message}</div></div>`;
+  toast.innerHTML = '<div class="toast-icon ' + type + '">' + (TOAST_ICONS[type]||TOAST_ICONS.info) + '</div><div class="toast-text"><div class="toast-title">' + title + '</div><div class="toast-sub">' + message + '</div></div>';
   container.appendChild(toast);
-  requestAnimationFrame(() => requestAnimationFrame(() => toast.classList.add('show')));
-  setTimeout(() => { toast.classList.remove('show'); setTimeout(() => toast.remove(), 420); }, duration);
+  requestAnimationFrame(function(){ requestAnimationFrame(function(){ toast.classList.add('show'); }); });
+  setTimeout(function(){ toast.classList.remove('show'); setTimeout(function(){ toast.remove(); }, 420); }, duration);
 }
 
-/* KEYBOARD */
-document.addEventListener('keydown', e => { if (e.key !== 'Escape') return; ['enrollModal','loginModal','dashboardModal'].forEach(closeModal); closeDrawer(); });
+document.addEventListener('keydown', function(e){ if (e.key !== 'Escape') return; ['enrollModal','loginModal','dashboardModal'].forEach(closeModal); closeDrawer(); });
 document.getElementById('backToTop').addEventListener('click', scrollToTop);
 
-/* PRELOADER */
 (function() {
   const loader = document.createElement('div');
   loader.id = 'preloader';
   loader.style.cssText = 'position:fixed;inset:0;z-index:99999;background:var(--bg0);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;transition:opacity .5s ease;';
-  loader.innerHTML = `
-    <div style="font-family:'Sora',sans-serif;font-size:2.2rem;font-weight:900;background:linear-gradient(135deg,#f97316,#fbbf24);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;">Skillbrzee</div>
-    <div style="width:48px;height:3px;background:var(--bg3);border-radius:2px;overflow:hidden;">
-      <div id="loaderBar" style="height:100%;background:linear-gradient(90deg,#f97316,#fbbf24);width:0%;border-radius:2px;transition:width .05s;"></div>
-    </div>`;
+  loader.innerHTML = '<div style="font-family:Sora,sans-serif;font-size:2.2rem;font-weight:900;background:linear-gradient(135deg,#f97316,#fbbf24);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;">Skillbrzee</div><div style="width:48px;height:3px;background:var(--bg3);border-radius:2px;overflow:hidden;"><div id="loaderBar" style="height:100%;background:linear-gradient(90deg,#f97316,#fbbf24);width:0%;border-radius:2px;transition:width .05s;"></div></div>';
   document.body.appendChild(loader);
   let progress = 0;
   const bar  = document.getElementById('loaderBar');
-  const tick = setInterval(() => { progress += Math.random() * 18; if (progress >= 100) { progress = 100; clearInterval(tick); } bar.style.width = progress + '%'; }, 60);
-  window.addEventListener('load', () => { setTimeout(() => { loader.style.opacity = '0'; setTimeout(() => loader.remove(), 520); }, 300); });
+  const tick = setInterval(function(){ progress += Math.random() * 18; if (progress >= 100) { progress = 100; clearInterval(tick); } bar.style.width = progress + '%'; }, 60);
+  window.addEventListener('load', function(){ setTimeout(function(){ loader.style.opacity = '0'; setTimeout(function(){ loader.remove(); }, 520); }, 300); });
 })();
 
-/* INIT */
-document.addEventListener('DOMContentLoaded', async () => {
+document.addEventListener('DOMContentLoaded', async function() {
   await refreshUser();
   renderCourses();
   renderPackages();
