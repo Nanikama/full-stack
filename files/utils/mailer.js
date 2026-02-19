@@ -1,122 +1,94 @@
+// config/email.js
 const nodemailer = require('nodemailer');
 
-// ── Create reusable transporter ────────────────────────────────────
-function createTransporter() {
-  return nodemailer.createTransport({
-    host:   process.env.SMTP_HOST || 'smtp.gmail.com',
-    port:   Number(process.env.SMTP_PORT) || 587,
-    secure: false, // true for port 465
-    auth: {
-      user: process.env.SMTP_USER,
-      pass: process.env.SMTP_PASS,
-    },
-  });
-}
+// ── Create transporter ────────────────────────────────
+const transporter = nodemailer.createTransport({
+  host:   process.env.SMTP_HOST || 'smtp.gmail.com',
+  port:   Number(process.env.SMTP_PORT) || 465,
+  secure: process.env.SMTP_SECURE === 'true',
+  auth: {
+    user: process.env.SMTP_USER,
+    pass: process.env.SMTP_PASS,
+  },
+});
 
-// ── Send Enrollment Confirmation Email ────────────────────────────
-async function sendEnrollmentEmail(user, payment) {
-  if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {
-    console.warn('[mailer] SMTP not configured — skipping email.');
+// ── Verify connection (on startup, optional) ──────────
+transporter.verify().then(() => {
+  console.log('📧 SMTP connection verified');
+}).catch(err => {
+  console.warn('⚠️  SMTP not configured or failed:', err.message);
+});
+
+// ── Generic send helper ───────────────────────────────
+async function sendMail({ to, subject, html, text }) {
+  if (!process.env.SMTP_USER) {
+    console.log(`[EMAIL SKIP] To: ${to} | Subject: ${subject}`);
     return;
   }
+  return transporter.sendMail({
+    from:    process.env.EMAIL_FROM || '"Skillbrzee" <support@skillbrzee.in>',
+    to, subject, html, text,
+  });
+}
 
-  const transporter = createTransporter();
-  const amountINR   = (payment.amount / 100).toLocaleString('en-IN');
-
-  const html = `
-  <!DOCTYPE html>
-  <html>
-  <head>
-    <meta charset="UTF-8"/>
-    <style>
-      body { font-family: Arial, sans-serif; background: #f4f4f4; margin: 0; padding: 0; }
-      .wrapper { max-width: 600px; margin: 40px auto; background: #fff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 24px rgba(0,0,0,0.1); }
-      .header { background: linear-gradient(135deg, #f97316, #fbbf24); padding: 36px; text-align: center; }
-      .header h1 { color: #fff; font-size: 28px; margin: 0; letter-spacing: -1px; }
-      .header p  { color: rgba(255,255,255,0.9); margin: 8px 0 0; font-size: 15px; }
-      .body { padding: 36px; }
-      .body h2 { color: #1a1a1a; font-size: 22px; margin-bottom: 12px; }
-      .body p  { color: #555; line-height: 1.7; font-size: 15px; }
-      .detail-box { background: #fef9f5; border: 1px solid #fde68a; border-radius: 8px; padding: 20px; margin: 24px 0; }
-      .detail-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #fde68a; font-size: 14px; }
-      .detail-row:last-child { border-bottom: none; font-weight: bold; color: #f97316; }
-      .detail-label { color: #777; }
-      .detail-value { color: #1a1a1a; font-weight: 600; }
-      .cta { text-align: center; margin: 28px 0; }
-      .cta a { background: linear-gradient(135deg, #f97316, #fb923c); color: #fff; padding: 14px 32px; border-radius: 8px; text-decoration: none; font-weight: 700; font-size: 15px; }
-      .footer { background: #f9fafb; padding: 24px; text-align: center; color: #999; font-size: 13px; border-top: 1px solid #eee; }
-      .footer a { color: #f97316; }
-    </style>
-  </head>
-  <body>
-    <div class="wrapper">
-      <div class="header">
-        <h1>🎓 Skillbrzee</h1>
-        <p>India's Trusted Learning Platform</p>
-      </div>
-      <div class="body">
-        <h2>Congratulations, ${user.name}! 🎉</h2>
-        <p>
-          You have successfully enrolled in <strong>${payment.packageName}</strong>.
-          Your payment has been confirmed and your learning journey starts now!
+// ── Welcome email after registration ─────────────────
+async function sendWelcomeEmail({ name, email }) {
+  await sendMail({
+    to:      email,
+    subject: `Welcome to Skillbrzee, ${name}! 🎉`,
+    html: `
+      <div style="font-family:sans-serif;max-width:560px;margin:auto;background:#0a1628;color:#eef2ff;padding:32px;border-radius:12px;">
+        <h1 style="color:#f97316;font-size:1.8rem;margin-bottom:8px;">Welcome to Skillbrzee! 🚀</h1>
+        <p style="color:#94a3b8;margin-bottom:20px;">Hi <strong style="color:#eef2ff">${name}</strong>,</p>
+        <p style="color:#94a3b8;line-height:1.7;">
+          Your account has been successfully created. You're now part of India's trusted learning platform. 
+          Start your digital journey today and unlock new skills!
         </p>
-
-        <div class="detail-box">
-          <div class="detail-row">
-            <span class="detail-label">Package</span>
-            <span class="detail-value">${payment.packageName}</span>
-          </div>
-          <div class="detail-row">
-            <span class="detail-label">Payment ID</span>
-            <span class="detail-value">${payment.razorpayPaymentId || ''}</span>
-          </div>
-          <div class="detail-row">
-            <span class="detail-label">Date</span>
-            <span class="detail-value">${new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })}</span>
-          </div>
-          <div class="detail-row">
-            <span class="detail-label">Amount Paid</span>
-            <span class="detail-value">₹${amountINR}</span>
-          </div>
-        </div>
-
-        <p>Our team will reach out to you within 24 hours with your course access details. You can also reach us at any time:</p>
-        <p>📞 9573472183 &nbsp;|&nbsp; ✉️ support@skillbrzee.in</p>
-
-        <div class="cta">
-          <a href="https://skillbrzee.in">Visit Skillbrzee →</a>
-        </div>
-      </div>
-      <div class="footer">
-        <p>© 2026 Skillbrzee | Hyderabad, Telangana, India</p>
-        <p><a href="https://skillbrzee.in/privacy">Privacy Policy</a> · <a href="https://skillbrzee.in/refund">Refund Policy</a></p>
-      </div>
-    </div>
-  </body>
-  </html>`;
-
-  await transporter.sendMail({
-    from:    process.env.EMAIL_FROM || 'Skillbrzee <support@skillbrzee.in>',
-    to:      user.email,
-    subject: `✅ Enrollment Confirmed — ${payment.packageName} | Skillbrzee`,
-    html,
-  });
-
-  console.log(`[mailer] Enrollment email sent to ${user.email}`);
-}
-
-// ── Send Welcome email (extensible) ────────────────────────────────
-async function sendWelcomeEmail(user) {
-  if (!process.env.SMTP_USER || !process.env.SMTP_PASS) return;
-
-  const transporter = createTransporter();
-  await transporter.sendMail({
-    from:    process.env.EMAIL_FROM || 'Skillbrzee <support@skillbrzee.in>',
-    to:      user.email,
-    subject: `Welcome to Skillbrzee, ${user.name}! 🚀`,
-    html: `<p>Hi ${user.name}, welcome aboard! Start exploring our courses at skillbrzee.in</p>`,
+        <a href="${process.env.APP_URL || 'https://skillbrzee.in'}" 
+           style="display:inline-block;margin-top:24px;background:linear-gradient(135deg,#f97316,#fb923c);color:#fff;padding:13px 28px;border-radius:10px;text-decoration:none;font-weight:700;">
+          Explore Courses →
+        </a>
+        <hr style="border-color:rgba(255,255,255,.08);margin:28px 0;"/>
+        <p style="color:#64748b;font-size:.78rem;">
+          If you didn't create this account, please contact 
+          <a href="mailto:${process.env.SUPPORT_EMAIL}" style="color:#f97316;">${process.env.SUPPORT_EMAIL}</a>
+        </p>
+      </div>`,
+    text: `Welcome to Skillbrzee, ${name}! Your account is ready. Visit ${process.env.APP_URL}`,
   });
 }
 
-module.exports = { sendEnrollmentEmail, sendWelcomeEmail };
+// ── Enrollment confirmation email ─────────────────────
+async function sendEnrollmentEmail({ name, email, packageName, amount }) {
+  const amountFormatted = `₹${(amount / 100).toLocaleString('en-IN')}`;
+  await sendMail({
+    to:      email,
+    subject: `🎓 Enrolled in ${packageName} — Skillbrzee`,
+    html: `
+      <div style="font-family:sans-serif;max-width:560px;margin:auto;background:#0a1628;color:#eef2ff;padding:32px;border-radius:12px;">
+        <h1 style="color:#f97316;font-size:1.6rem;margin-bottom:8px;">Enrollment Confirmed! 🎓</h1>
+        <p style="color:#94a3b8;">Hi <strong style="color:#eef2ff">${name}</strong>,</p>
+        <p style="color:#94a3b8;line-height:1.7;">
+          Your enrollment in <strong style="color:#f97316">${packageName}</strong> has been confirmed. 
+          You now have <strong style="color:#eef2ff">lifetime access</strong> to all course materials.
+        </p>
+        <div style="background:#111e33;border:1px solid rgba(249,115,22,.2);border-radius:10px;padding:16px 20px;margin:24px 0;">
+          <p style="margin:0;color:#94a3b8;font-size:.88rem;">Package: <strong style="color:#f97316">${packageName}</strong></p>
+          <p style="margin:8px 0 0;color:#94a3b8;font-size:.88rem;">Amount Paid: <strong style="color:#22c55e">${amountFormatted}</strong></p>
+        </div>
+        <a href="${process.env.APP_URL || 'https://skillbrzee.in'}" 
+           style="display:inline-block;background:linear-gradient(135deg,#f97316,#fb923c);color:#fff;padding:13px 28px;border-radius:10px;text-decoration:none;font-weight:700;">
+          Start Learning →
+        </a>
+        <hr style="border-color:rgba(255,255,255,.08);margin:28px 0;"/>
+        <p style="color:#64748b;font-size:.78rem;">
+          Need help? Contact us at 
+          <a href="mailto:${process.env.SUPPORT_EMAIL}" style="color:#f97316;">${process.env.SUPPORT_EMAIL}</a> 
+          or call 9573472183.
+        </p>
+      </div>`,
+    text: `Enrollment confirmed! You are now enrolled in ${packageName} (${amountFormatted}). Visit ${process.env.APP_URL}`,
+  });
+}
 
+module.exports = { sendWelcomeEmail, sendEnrollmentEmail };
