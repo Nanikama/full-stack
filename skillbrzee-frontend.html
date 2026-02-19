@@ -361,7 +361,7 @@
     const forced = localStorage.getItem('sb_api_base');
     if (forced) return forced.replace(/\/$/, '');
     if (location?.port === '5000') return `${location.origin}/api`;
-    return 'http://localhost:5000/api';
+    return return 'https://full-stack-xlm6.onrender.com/api';;
   })();
 
   let authToken   = localStorage.getItem('sb_token') || null;
